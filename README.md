@@ -6,6 +6,6 @@
 
 winsock2
 get ip site
-send GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n"
+send GET / HTTP/1.1\r\nHost:  \r\nConnection: close\r\n\r\n"
 receive data server
 and save to html
