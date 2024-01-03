@@ -1,9 +1,12 @@
 #include <iostream>
 #include <winsock2.h>
 #include <Ws2tcpip.h> // Include this header for InetPton
+#include <fstream>
+
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma warning(disable: 4996) 
+
 
  
 class Socket {
@@ -22,13 +25,21 @@ public:
         }
     }
 
-    
-
-    int Connect(char* ip, const int port) {
+ 
+    int Connect(static char* ip, const int port) {
         sockaddr_in serverAddr;
         serverAddr.sin_family = AF_INET;
 
-        if (InetPton(AF_INET, ip, &serverAddr.sin_addr) != 1) {
+        // Convert narrow string to wide string
+        wchar_t wideIP[INET_ADDRSTRLEN];
+        if (MultiByteToWideChar(CP_ACP, 0, ip, -1, wideIP, sizeof(wideIP) / sizeof(wideIP[0])) == 0) {
+            std::cerr << "Error converting IP address to wide string\n";
+            closesocket(socket_result);
+            WSACleanup();
+            return SOCKET_ERROR;
+        }
+
+        if(InetPton(AF_INET, wideIP, &serverAddr.sin_addr) != 1) {
             std::cerr << "Invalid IP address\n";
             closesocket(socket_result);
             WSACleanup();
@@ -67,7 +78,8 @@ public:
         WSACleanup();
     }
 
-  
+     
+
 
     ~Socket() {
         closesocket(socket_result);
@@ -77,8 +89,16 @@ public:
 private:
     SOCKET socket_result;
     WSADATA wsaDATA;
+
+
+   
 };
  
+
+
+
+
+
 
 char* GetIP(const char* website) {
     struct addrinfo* result = nullptr;
@@ -104,11 +124,9 @@ char* GetIP(const char* website) {
  
 int main() {
     Socket mySocket;
-    const char* serverIP = "142.251.46.206";
     const int serverPort = 80;
-     
-    const char* website = "www.google.com";
 
+    char website[256] = "www.google.com";
 
     printf("%s\n", website);
 
@@ -118,6 +136,7 @@ int main() {
 
     if (mySocket.Connect(ipAddress, serverPort) == SOCKET_ERROR) {
         std::cerr << "Error connecting to server\n";
+        free(ipAddress); // Free allocated memory
         return 1;
     }
 
@@ -127,13 +146,24 @@ int main() {
     char buf[8096];
     int bytesRead;
 
+    // Open a file for writing
+    std::ofstream outputFile("output.html", std::ios::out | std::ios::binary);
+
     while ((bytesRead = mySocket.Receive(buf, sizeof(buf) - 1)) > 0) {
         buf[bytesRead] = '\0';  // Null-terminate the received data
+
+        // Print to console
         printf("%s", buf);
+
+        // Write to file
+        outputFile.write(buf, bytesRead);
     }
 
-    printf("end\n" );
+    printf("end\n");
     mySocket.Close();
+
+    // Free allocated memory
+    free(ipAddress);
 
     return 0;
 }
